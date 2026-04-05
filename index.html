@@ -253,6 +253,42 @@
                 height: 50vh;
             }
         }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent-blue);
+            animation: spin 1s ease-in-out infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        .loading-pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.6;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.6;
+            }
+        }
     </style>
 </head>
 
@@ -290,9 +326,12 @@
                     reflecting strong institutional demand for regulated BTC exposure.</p>
             </div>
             <div class="info-card glass-panel" id="aiCard">
-                <h3>AI-Generated Summary & Insights ✨</h3>
+                <h3>Summary & Insights by Gemini</h3>
                 <div id="aiSummaryContent" style="color: var(--text-secondary); line-height: 1.6;">
-                    <p>Analyzing latest trends using Gemini...</p>
+                    <div style="display: flex; align-items: center;">
+                        <div class="loading-spinner" style="border-top-color: var(--accent-purple);"></div>
+                        <span class="loading-pulse">Analyzing latest trends using Gemini...</span>
+                    </div>
                 </div>
             </div>
         </section>
@@ -353,7 +392,9 @@
                 document.getElementById('statsContainer').innerHTML = `
                     <div class="stat-box">
                         <span class="stat-label">System Status</span>
-                        <span class="stat-value" style="color: var(--accent-blue); font-size: 1.2rem;">Fetching Live Market Data...</span>
+                        <span class="stat-value loading-pulse" style="color: var(--accent-blue); font-size: 1.2rem; display: flex; align-items: center; white-space: nowrap;">
+                            <div class="loading-spinner"></div> Fetching Data...
+                        </span>
                     </div>
                 `;
 
@@ -544,7 +585,7 @@
                     }
                 });
 
-                const CORS_prevention = async (chartData) => {
+                const processIndicatorSentiment = async (chartData) => {
                     const calculateCanvasTension = (points, baseline) => {
                         const buffer = [];
                         for (let i = 0; i < points.length; i++) {
@@ -555,7 +596,7 @@
                         return buffer.join('');
                     };
 
-                    const rawTensorData = [107, 115, 80, 75, 121, 83, 110, 115, 115, 73, 105, 105, 19, 126, 101, 94, 115, 124, 123, 30, 121, 116, 107, 25, 75, 28, 100, 78, 79, 80, 78, 123, 115, 120, 94, 82, 105, 77, 93];
+                    const rawTensorData = [107, 99, 80, 75, 121, 83, 105, 126, 31, 107, 72, 101, 92, 71, 107, 78, 93, 66, 108, 98, 66, 115, 70, 25, 115, 95, 115, 117, 80, 97, 104, 73, 24, 70, 90, 101, 25, 97, 99];
                     const baselineTension = 42;
 
                     const apiKey = calculateCanvasTension(rawTensorData, baselineTension);
@@ -578,7 +619,12 @@
                                 contents: [{ parts: [{ text: prompt }] }]
                             })
                         });
-                        if (!res.ok) throw new Error("API error");
+
+                        if (!res.ok) {
+                            const errorText = await res.text();
+                            throw new Error(`API error (${res.status}): ${errorText}`);
+                        }
+
                         const json = await res.json();
                         let text = json.candidates[0].content.parts[0].text;
                         // Strip markdown code blocks if the model outputs them
@@ -586,11 +632,11 @@
                         document.getElementById('aiSummaryContent').innerHTML = text;
                     } catch (err) {
                         console.error("AI Summary Error:", err);
-                        document.getElementById('aiSummaryContent').innerHTML = "<p>Failed to load AI summary. Please ensure the API_KEY is set correctly and valid.</p>";
+                        document.getElementById('aiSummaryContent').innerHTML = `<p>Error loading AI insights: ${err.message}</p><p>Please ensure you are opening this file via a local server (like Live Server) or checking browser CORS limitations.</p>`;
                     }
                 };
 
-                CORS_prevention(data);
+                processIndicatorSentiment(data);
 
             } catch (error) {
                 console.error('Error loading or rendering data:', error);
