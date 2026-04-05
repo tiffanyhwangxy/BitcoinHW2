@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAT.co Monitor - MSTR Premium to NAV</title>
+    
+    <meta name="description" content="A comprehensive monitoring platform tracking the Premium to NAV for MicroStrategy (MSTR) and its relationship with Bitcoin.">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --glass-bg: rgba(15, 23, 42, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            line-height: 1.6;
+        }
+
+        .glass-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0b0f19 100%);
+            z-index: -2;
+        }
+
+        .glow-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: -1;
+            opacity: 0.4;
+            animation: drift 20s infinite alternate ease-in-out;
+        }
+
+        .orb-1 {
+            top: -10%; left: -10%;
+            width: 500px; height: 500px;
+            background-color: var(--accent-purple);
+        }
+
+        .orb-2 {
+            bottom: -10%; right: -10%;
+            width: 600px; height: 600px;
+            background-color: var(--accent-blue);
+            animation-delay: -5s;
+        }
+
+        @keyframes drift {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(100px, 100px); }
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 1rem;
+            animation: fadeInDown 0.8s ease-out forwards;
+        }
+
+        .title-section h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .stats-container {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .stat-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            min-width: 160px;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .stat-positive { color: var(--accent-green); }
+        .stat-negative { color: var(--accent-red); }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeInUp 0.8s ease-out forwards;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .chart-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-header h2 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #e2e8f0;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            height: 60vh;
+            min-height: 400px;
+            width: 100%;
+        }
+
+        .info-section {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        .info-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #e2e8f0;
+        }
+
+        .info-card p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1.5rem;
+            }
+            .stats-container {
+                width: 100%;
+                overflow-x: auto;
+                padding-bottom: 0.5rem;
+            }
+            .canvas-wrapper {
+                height: 50vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="glass-bg"></div>
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    
+    <main class="dashboard-container">
+        <header class="dashboard-header">
+            <div class="title-section">
+                <h1>DAT.co Monitor</h1>
+                <p class="subtitle">MicroStrategy (MSTR) Premium to NAV vs. Bitcoin Price</p>
+            </div>
+            <div class="stats-container" id="statsContainer">
+                <!-- Stats injected by JS -->
+            </div>
+        </header>
+        
+        <section class="chart-section glass-panel">
+            <div class="chart-header">
+                <h2>Historical Indicator Time-Series (Daily)</h2>
+            </div>
+            <div class="canvas-wrapper">
+                <canvas id="premiumChart"></canvas>
+            </div>
+        </section>
+        
+        <section class="info-section">
+            <div class="info-card glass-panel">
+                <h3>About This Indicator</h3>
+                <p>The <strong>Premium to NAV</strong> (Net Asset Value) calculates the market valuation of MicroStrategy (MSTR) relative to the underlying value of the Bitcoin it holds. A positive premium indicates the market is valuing MSTR's equity higher than its strict Bitcoin treasury value, often reflecting strong institutional demand for regulated BTC exposure.</p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Determine logic: Live client-side data fetch function replacing local Python script
+                // We use multiple CORS proxy fallbacks because Yahoo Finance occasionally rate-limits public proxies
+                
+                const fetchYahooData = async (ticker) => {
+                    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=2y`;
+                    
+                    const proxies = [
+                        (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, // Returns wrapped JSON
+                        (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+                        (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`
+                    ];
+
+                    let lastError = null;
+                    for (const proxyFn of proxies) {
+                        try {
+                            const proxyUrl = proxyFn(url);
+                            console.log(`Trying proxy for ${ticker}:`, proxyUrl);
+                            const res = await fetch(proxyUrl);
+                            
+                            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                            
+                            let data = await res.json();
+                            
+                            // allorigins/get wraps the true response in a 'contents' string
+                            if (data.contents) {
+                                data = JSON.parse(data.contents);
+                            }
+
+                            if (!data.chart || !data.chart.result) {
+                                throw new Error('Invalid Yahoo Finance format received');
+                            }
+
+                            const timestamps = data.chart.result[0].timestamp;
+                            const closes = data.chart.result[0].indicators.quote[0].close;
+                            
+                            return timestamps.map((ts, i) => ({
+                                date: new Date(ts * 1000).toISOString().split('T')[0],
+                                close: closes[i]
+                            })).filter(x => x.close != null);
+
+                        } catch (err) {
+                            console.warn(`Proxy failed for ${ticker}:`, err);
+                            lastError = err;
+                        }
+                    }
+                    throw new Error(`All proxies failed for ${ticker}. Last error: ${lastError}`);
+                };
+
+                // Show loading state
+                document.getElementById('statsContainer').innerHTML = `
+                    <div class="stat-box">
+                        <span class="stat-label">System Status</span>
+                        <span class="stat-value" style="color: var(--accent-blue); font-size: 1.2rem;">Fetching Live Market Data...</span>
+                    </div>
+                `;
+
+                const [mstrRaw, btcRaw] = await Promise.all([fetchYahooData('MSTR'), fetchYahooData('BTC-USD')]);
+                
+                const btcMap = new Map(btcRaw.map(item => [item.date, item.close]));
+                let data = [];
+                const BTC_PER_SHARE = 0.0012467; // Estimated holdings ratio
+                
+                mstrRaw.forEach(mstrItem => {
+                    // Align dates
+                    if (btcMap.has(mstrItem.date)) {
+                        const btcClose = btcMap.get(mstrItem.date);
+                        const navPerShare = btcClose * BTC_PER_SHARE;
+                        const premium = (mstrItem.close / navPerShare) - 1;
+                        
+                        data.push({
+                            Date: mstrItem.date,
+                            MSTR_Close: mstrItem.close,
+                            BTC_Close: btcClose,
+                            Premium_to_NAV: premium
+                        });
+                    }
+                });
+
+                if (data.length === 0) {
+                    throw new Error('Data parsing succeeded but resulted in empty array');
+                }
+
+                // Process data for charts
+                const dates = data.map(item => item.Date);
+                const premium = data.map(item => item.Premium_to_NAV * 100);
+                const btcPrice = data.map(item => item.BTC_Close);
+                
+                // Latest Stats
+                const latestData = data[data.length - 1];
+                const latestPremium = (latestData.Premium_to_NAV * 100).toFixed(2);
+                const latestBTC = latestData.BTC_Close.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                const latestMSTR = latestData.MSTR_Close.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                
+                // Update DOM Stats
+                document.getElementById('statsContainer').innerHTML = `
+                    <div class="stat-box">
+                        <span class="stat-label">Current Premium to NAV</span>
+                        <span class="stat-value ${latestPremium >= 0 ? 'stat-positive' : 'stat-negative'}">${latestPremium}%</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">MSTR Price</span>
+                        <span class="stat-value">${latestMSTR}</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">BTC Price</span>
+                        <span class="stat-value">${latestBTC}</span>
+                    </div>
+                `;
+
+                // Configure Chart
+                const ctx = document.getElementById('premiumChart').getContext('2d');
+                
+                // Gradients
+                const premiumGradient = ctx.createLinearGradient(0, 0, 0, 400);
+                premiumGradient.addColorStop(0, 'rgba(139, 92, 246, 0.5)'); // purple
+                premiumGradient.addColorStop(1, 'rgba(139, 92, 246, 0.0)');
+                
+                const btcGradient = ctx.createLinearGradient(0, 0, 0, 400);
+                btcGradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)'); // blue
+                btcGradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+                // Chart.js defaults
+                Chart.defaults.color = '#94a3b8';
+                Chart.defaults.font.family = "'Inter', sans-serif";
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [
+                            {
+                                label: 'Premium to NAV (%)',
+                                data: premium,
+                                borderColor: '#8b5cf6',
+                                backgroundColor: premiumGradient,
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                pointHoverRadius: 4,
+                                fill: true,
+                                yAxisID: 'y',
+                                tension: 0.4
+                            },
+                            {
+                                label: 'Bitcoin Price (USD)',
+                                data: btcPrice,
+                                borderColor: '#3b82f6',
+                                backgroundColor: btcGradient,
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                pointHoverRadius: 4,
+                                fill: true,
+                                yAxisID: 'y1',
+                                tension: 0.4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    color: '#f8fafc',
+                                    usePointStyle: true,
+                                    padding: 20,
+                                    font: { size: 13 }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                titleColor: '#f8fafc',
+                                bodyColor: '#e2e8f0',
+                                borderColor: 'rgba(255,255,255,0.1)',
+                                borderWidth: 1,
+                                padding: 12,
+                                displayColors: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) label += ': ';
+                                        if (context.datasetIndex === 0) {
+                                            label += context.parsed.y.toFixed(2) + '%';
+                                        } else {
+                                            label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'month',
+                                    displayFormats: { month: 'MMM yyyy' }
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.05)',
+                                    drawBorder: false
+                                },
+                                ticks: {
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 10
+                                }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Premium to NAV (%)',
+                                    color: '#8b5cf6'
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.05)',
+                                    drawBorder: false
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Bitcoin Price (USD)',
+                                    color: '#3b82f6'
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error loading or rendering data:', error);
+                document.getElementById('statsContainer').innerHTML = `
+                    <div class="stat-box" style="border-color: #ef4444;">
+                        <span class="stat-label">Error</span>
+                        <span class="stat-value stat-negative">Could not load data.</span>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
