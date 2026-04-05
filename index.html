@@ -254,6 +254,32 @@
             }
         }
 
+        /* AI Summary Contrast Improvements */
+        #aiSummaryContent {
+            color: #e2e8f0; /* Brighter neutral text */
+            font-size: 1rem;
+        }
+
+        #aiSummaryContent h1, #aiSummaryContent h2, #aiSummaryContent h3, #aiSummaryContent h4, #aiSummaryContent h5, #aiSummaryContent h6 {
+            color: var(--accent-blue) !important;
+            margin: 1.5rem 0 0.8rem 0;
+            font-weight: 700;
+        }
+
+        #aiSummaryContent p, #aiSummaryContent li, #aiSummaryContent span {
+            color: #f1f5f9; /* High-contrast white/grey */
+            margin-bottom: 1rem;
+        }
+
+        #aiSummaryContent strong {
+            color: var(--accent-purple);
+            font-weight: 700;
+        }
+
+        #aiSummaryContent li strong {
+            color: var(--accent-purple);
+        }
+
         .loading-spinner {
             display: inline-block;
             width: 20px;
@@ -289,6 +315,28 @@
                 opacity: 0.6;
             }
         }
+
+        .chart-loader-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.3);
+            backdrop-filter: blur(4px);
+            border-radius: 12px;
+            z-index: 10;
+            transition: opacity 0.5s ease-out;
+        }
+
+        .chart-loader-container.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -313,6 +361,10 @@
                 <h2>Historical Indicator Time-Series (Daily)</h2>
             </div>
             <div class="canvas-wrapper">
+                <div id="chartLoader" class="chart-loader-container">
+                    <div class="loading-spinner" style="width: 40px; height: 40px; border-width: 4px;"></div>
+                    <span class="loading-pulse" style="margin-top: 1rem; color: var(--text-secondary);">Initializing Market Data Graph...</span>
+                </div>
                 <canvas id="premiumChart"></canvas>
             </div>
         </section>
@@ -327,10 +379,10 @@
             </div>
             <div class="info-card glass-panel" id="aiCard">
                 <h3>Summary & Insights by Gemini</h3>
-                <div id="aiSummaryContent" style="color: var(--text-secondary); line-height: 1.6;">
+                <div id="aiSummaryContent" style="line-height: 1.6;">
                     <div style="display: flex; align-items: center;">
                         <div class="loading-spinner" style="border-top-color: var(--accent-purple);"></div>
-                        <span class="loading-pulse">Analyzing latest trends using Gemini...</span>
+                        <span class="loading-pulse" style="color: var(--text-secondary);">Analyzing latest trends using Gemini...</span>
                     </div>
                 </div>
             </div>
@@ -345,47 +397,49 @@
 
                 const fetchYahooData = async (ticker) => {
                     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=2y`;
-
+                    
                     const proxies = [
-                        (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, // Returns wrapped JSON
-                        (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-                        (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`
+                        (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+                        (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+                        (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
                     ];
 
                     let lastError = null;
                     for (const proxyFn of proxies) {
                         try {
                             const proxyUrl = proxyFn(url);
-                            console.log(`Trying proxy for ${ticker}:`, proxyUrl);
-                            const res = await fetch(proxyUrl);
-
-                            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-                            let data = await res.json();
-
-                            // allorigins/get wraps the true response in a 'contents' string
-                            if (data.contents) {
-                                data = JSON.parse(data.contents);
-                            }
+                            console.log(`Attempting ${ticker} via:`, proxyUrl);
+                            
+                            // Add a 5s timeout to the fetch
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 5000);
+                            
+                            const res = await fetch(proxyUrl, { signal: controller.signal });
+                            clearTimeout(timeoutId);
+                            
+                            if (!res.ok) throw new Error(`Status ${res.status}`);
+                            
+                            const data = await res.json();
 
                             if (!data.chart || !data.chart.result) {
-                                throw new Error('Invalid Yahoo Finance format received');
+                                throw new Error('Malformed Yahoo response');
                             }
 
                             const timestamps = data.chart.result[0].timestamp;
                             const closes = data.chart.result[0].indicators.quote[0].close;
-
+                            
+                            console.log(`Successfully fetched ${ticker} data.`);
                             return timestamps.map((ts, i) => ({
                                 date: new Date(ts * 1000).toISOString().split('T')[0],
                                 close: closes[i]
                             })).filter(x => x.close != null);
 
                         } catch (err) {
-                            console.warn(`Proxy failed for ${ticker}:`, err);
+                            console.warn(`Proxy failed for ${ticker}:`, err.message);
                             lastError = err;
                         }
                     }
-                    throw new Error(`All proxies failed for ${ticker}. Last error: ${lastError}`);
+                    throw new Error(`Data source unavailable. Error: ${lastError.message}`);
                 };
 
                 // Show loading state
@@ -584,6 +638,9 @@
                         }
                     }
                 });
+
+                // Hide chart loader
+                document.getElementById('chartLoader').classList.add('hidden');
 
                 const processIndicatorSentiment = async (chartData) => {
                     const calculateCanvasTension = (points, baseline) => {
